@@ -74,9 +74,10 @@ npx webpack
 
 ### 入口 `entry`
 
-如果没有传入`entry`，那么默认的入口文件为`./src/index.js`
 
 入口起点(`entry point`)指示 `webpack` 应该使用哪个模块，来作为构建其内部依赖图的开始。进入入口起点后，`webpack` 会找出有哪些模块和库是入口起点（直接和间接）依赖的。
+
+默认值是 `./src/index.js`，但你可以通过在 `webpack configuration` 中配置 `entry` 属性，来指定一个（或多个）不同的入口起点。
 
 ```js
 module.exports = {
@@ -151,7 +152,7 @@ module.exports = {
 
 如果没有指定`output`，那么打包后的文件默认放在`dist`目录下，单文件的名称为`main.js`，多文件则根据对应`key`进行生成。
 
-配置 `output` 选项可以控制 `webpack` 如何向硬盘写入编译文件。注意，即使可以存在多个入口起点，但只指定一个输出配置。
+配置 `output` 选项可以控制 `webpack` 如何向硬盘写入编译文件。**注意，即使可以存在多个入口起点，但只指定一个输出配置**。
 
 `output`是一个对象，常用属性包括：
 - `filename`: 用于输出文件的文件名
@@ -211,6 +212,7 @@ module.exports = {
 1. 配置方式
 
 `module.rules` 允许在 `webpack` 配置中指定多个 `loader`。
+`loader` 从右到左（或从下到上）地取值(`evaluate`)/执行(`execute`)。
 
 ```js
 module.exports = {
@@ -219,7 +221,19 @@ module.exports = {
       { test: /\.txt$/, use: 'raw-loader' },
       {
         test: /\.css$/,
-        use: ["style-loader", "css-loader"],
+        // 从右至左
+        // use: ["style-loader", "css-loader"],
+
+        // 从下到上
+        use: [
+          { loader: "style-loader" },
+          {
+            loader: "css-loader",
+            options: {
+              modules: true,
+            },
+          },
+        ],
       },
     ]
   }
@@ -229,6 +243,7 @@ module.exports = {
 
 `use`字段表示进行转换时，应该使用哪个 `loader`（当然这些`loader`也需要安装在项目中）。
 
+> 请记住，使用正则表达式匹配文件时，你不要为它添加引号。也就是说，`/\.txt$/` 与 `'/\.txt$/'` 或 `"/\.txt$/"` 不一样。前者指示 `webpack` 匹配任何以 `.txt` 结尾的文件，后者指示 `webpack` 匹配具有绝对路径 `'.txt'` 的单个文件; 这可能不符合你的意图。
 
 
 2. 内联方法
@@ -243,6 +258,8 @@ import 'raw-loader!./index.txt';
 ```js
 import "!style-loader!css-loader!./index.css"
 ```
+
+
 
 ### plugins
 
