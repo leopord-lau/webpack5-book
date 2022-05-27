@@ -286,3 +286,77 @@ module.exports = {
 ```
 
 在`webpack.config.js`文件中先引入对应的插件，在`plugins`字段中传入对应插件的实例。`html-webpack-plugin`这个插件可以自动生成`html`文件，并把打包后的文件自动引入其中。
+
+
+## 自动编译
+
+在每次编译代码时，手动运行 `npx webpack` 会显得很麻烦。
+`webpack` 提供几种可选方式，在代码发生变化后自动编译代码:
+
+### 1. `watch`模式
+使用 `npx webpack --watch`命令启动或者在`webpack.config.js`文件配置`watch: true`。
+
+通过配置`watch`模式，如果其中一个文件被更新，代码将被重新编译，不需要手动运行整个构建。
+
+### 2.使用`webpack-dev-server`
+
+`watch`模式虽然可以实现自动编译，但在实际开发中你可能会需要：
+
+- 提供 `HTTP` 服务而不是使用本地文件预览；
+- 监听文件的变化并自动刷新网页，做到实时预览；
+- 支持 `Source Map`，以方便调试。
+
+在`webpack`中，提供一个`webpack-dev-server`用于解决上述的问题。
+
+安装`webpack-dev-server`插件。
+
+```bash
+npm i webpack-dev-server -D
+```
+
+安装后在对应目录下执行`npx webpack-dev-server`即可运行。
+
+`webpack-dev-server`启动的`http`服务器默认监听`localhost:8080`。通过访问该地址就可以获取项目根目录下`public`中的`index.html`文件。
+
+由于在配置文件中设置了将文件输出到`dist`目录。
+```js
+output: {
+  path: path.resolve(__dirname, "dist"),
+  filename: "bundle.js",
+  clean: true,
+}
+```
+
+但是访问`localhost:8080`却发现`./dist/bundle.js` 404了。查看目录也没有`dist`目录的生成，原因是 `webpack-dev-server` 会把 `Webpack` 构建出的文件保存在内存中，在要访问输出的文件时，必须通过 `HTTP` 服务访问。 由于该插件不会理会 `webpack.config.js` 里配置的 `output.path` 属性，所以要获取 `bundle.js` 的正确 `URL` 是 `http://localhost:8080/bundle.js`。
+
+所以在`index.html`中引入打包后的文件应写成：
+```html
+<script src="bundle.js"></script>
+```
+
+
+`webpack-dev-server`同时还开启了`watch`模式，当发生变化时重新执行完构建后通知 `webpack-dev-server`。 `webpack-dev-server` 会让 `Webpack` 在构建出的 `JavaScript` 代码里注入一个代理客户端用于控制网页，网页和 `webpack-dev-server` 之间通过 `WebSocket` 协议通信， 以方便 `webpack-dev-server` 主动向客户端发送命令。 `webpack-dev-server` 在收到来自 `Webpack` 的文件变化通知时通过注入的客户端控制网页刷新。
+
+#### 模块热更新
+
+除了通过重新刷新整个网页来实现实时预览，`webpack-dev-server` 还支持热更新，模块热替换默认是关闭的，要开启模块热替换，你只需在启动`webpack-dev-server` 时带上 `--hot` 参数。
+
+#### 支持 `Source Map`
+
+`webpack-dev-server` 支持生成 `Source Map`，只需在启动时带上 `--devtool source-map` 参数。 加上参数重启 `webpack-dev-server` 后刷新页面，再打开 `Chrome` 浏览器的开发者工具，就可在 `Sources` 栏中看到可调试的源代码了。
+
+
+当然以上配置都是可以在`webpack.config.js`文件进行配置。
+
+```js
+module.exports = {
+  devServer: {
+    port: 8080,
+    hot: true,
+  }
+};
+```
+
+此时就可以通过运行`npx webpack serve`启动。
+
+
