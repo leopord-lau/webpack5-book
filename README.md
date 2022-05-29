@@ -198,7 +198,7 @@ module.exports = {
 |  [query]   | 模块的 query，例如，文件名 ? 后面的字符串 |
 
 
-### loader
+### `loader`
 
 `loader` 用于对模块的源代码进行转换。`loader` 可以使你在 `import` 或"加载"模块时预处理文件。因此，`loader` 类似于其他构建工具中“任务(`task`)”，并提供了处理前端构建步骤的强大方法。`loader` 可以将文件从不同的语言（如 `TypeScript`）转换为 `JavaScript`，或将内联图像转换为 `data URL`。`loader` 甚至允许你直接在 `JavaScript` 模块中 `import` `CSS`文件！
 
@@ -244,6 +244,28 @@ module.exports = {
 `use`字段表示进行转换时，应该使用哪个 `loader`（当然这些`loader`也需要安装在项目中）。
 
 > 请记住，使用正则表达式匹配文件时，你不要为它添加引号。也就是说，`/\.txt$/` 与 `'/\.txt$/'` 或 `"/\.txt$/"` 不一样。前者指示 `webpack` 匹配任何以 `.txt` 结尾的文件，后者指示 `webpack` 匹配具有绝对路径 `'.txt'` 的单个文件; 这可能不符合你的意图。
+
+当文件过多时，`webpack`的搜索速度会受到影响，因此`webpack`在`loader`配置中提供了`include`和`exclude`两个字段用于缩小文件查找范围。
+
+```js
+module.exports = {
+  module: {
+    rules: [
+      { test: /\.txt$/,
+        use: 'raw-loader'，
+        // 只命中src中的txt文件
+        include: path.resolve(__dirname, 'src')
+      },
+      {
+        test: /\.css$/,
+        use: ["style-loader", "css-loader"],
+        // 排除node_modules目录
+        exclude: path.resolve(__dirname, 'node_modules')
+      },
+    ]
+  }
+};
+```
 
 
 2. 内联方法
@@ -359,4 +381,19 @@ module.exports = {
 
 此时就可以通过运行`npx webpack serve`启动。
 
+
+
+## 优化
+
+### 1. 缩小文件搜索范围
+
+在前面的学习过程中，我们知道了 `Webpack` 启动后会从配置的 `entry` 出发，解析出文件中的导入语句，再递归的解析。 在遇到导入语句时 `Webpack` 会做两件事情：
+
+根据导入语句去寻找对应的要导入的文件。例如 `require('vue')` 导入语句对应的文件是 `./node_modules/vue/vue.js`，`require('./util')` 对应的文件是 `./util.js`。
+
+根据找到的要导入文件的后缀，使用配置中的 `loader` 去处理文件。例如使用 `ES6` 开发的 `JavaScript` 文件需要使用 `babel-loader` 去处理。
+
+但是随着项目中文件越来越大，构建速度也会变得越来越慢，因此我们需要进行优化。
+
+#### loader配置优化
 
