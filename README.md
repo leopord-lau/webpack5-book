@@ -654,6 +654,171 @@ module.exports = {
 该配置项常用于加载本地的 `loader`。
 
 
+
+## 常用`loaders`
+
+默认`webpack`只会处理`js`代码，所以当我们想要去打包其他内容时，让`webpack`处理其他类型的内容，就要使用相应的`loader`，下面我们来看看一些常用的`loaders`。
+
+### `ts-loader`
+
+对于`ts`或者`tsx`文件而言，需要安装`ts-loader`及`typescript`。
+```bash
+npm install ts-loader typescript -D
+```
+
+```js
+  module: {
+    rules: [
+      {
+        test: /\.ts$/,
+        use: 'ts-loader'
+      }
+    ]
+  }
+```
+
+`ts-loader`也可以进行一些配置
+
+```js
+  module: {
+    rules: [
+      {
+        test: /\.ts$/,
+        use: [
+          {
+            loader: 'ts-loader',
+            options: {
+              // 只进行语法转换,不进行类型校验,提高构建速度
+              transpileOnly: true
+            }
+          }
+        ]
+      }
+    ]
+  }
+```
+
+### `babel-loader`
+
+在`webpack`中默认只能处理一部分`ES6`新语法，一些更高级的`ES6`语法或者`ES7`语法`webpack`处理不了，这时候就需要借助第三方`loader`来帮助`webpack`处理这些更高级的语法，把这些高级语法转化为浏览器能解析的低级语法，然后会把结果交给`webpack`去打包到`bundle.js`中。
+
+要想使用`babel-loader`，需要安装`babel-loader`、`@babel/core`、`@babel/preset-env`这三个库。
+
+```bash
+npm install babel-loader @babel/core @babel/preset-env -D
+```
+
+上面仅仅是安装了三个包，如果要使`babel`起作用，便需要配置`babel`规则。
+
+第一种方式是通过`package.json`。在`package.json`文件中增加一个`“babel"`属性，该属性是一个`JSON`对象，作用是设置项目中的`babel`转码规则和使用到的`babel`插件，其基本格式如下：
+
+```json
+"babel":{
+  "presets": ["@babel/preset-env"],
+}
+```
+上面的设置告诉`npm`本项目将使用`babel`，并且使用`@babel/preset-env`规则进行转码，即实现对`ES2015+`语法进行转码。
+
+第二种方式，即通过`.babelrc`文件。在项目根目录下新建`.babelrc`文件，里面只需输入第一种方式中`"babel"`属性的值即可：
+
+```js
+{
+  "presets": ["@babel/preset-env"]
+}
+```
+
+最后就是直接在`babel-loader`的`options`中进行配置。
+```js
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        use: [
+          {
+            loader: 'babel-loader',
+            options: {
+              presets: [
+                ['@babel/preset-env', { targets: "defaults" }]
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+```
+
+
+
+
+### `css`相关
+
+#### `style-loader`
+
+`style-loader` 是通过一个`js`创建一个`style`标签，并将解析后的`css`插入该标签。`style-loader`是不能单独使用的，应为它并不负责解析 `css` 之前的依赖关系，通常结合`css-loader`一起使用。
+
+#### `css-loader`
+
+`css-loader`会将`@import`和`url()`解析成`import/require()`后处理`css`的依赖关系，将最后生成的内容传递给`style-loader`进行处理。
+```js
+  module: {
+    rules: [
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader']
+      }
+    ]
+  }
+```
+`use`中的`style-loader`和`css-loader`顺序不能变，因为`loader`的处理有一个优先级，从右到左、从下到上。
+
+#### `less-loader`
+
+将`less`解析成`css`。需要安装`less-loader`和`less`
+
+```bash
+npm i less-loader less -D
+```
+
+```js
+  module: {
+    rules: [
+      {
+        test: /\.less$/,
+        use: ['style-loader', 'css-loader', 'less-loader']
+      }
+    ]
+  }
+```
+
+同样，`less-loader`需放在最后一个。
+
+
+#### `sass-loader`
+
+将`scss`解析成`css`。需要安装`sass-loader`和`node-sass`
+
+```bash
+npm i sass-loader node-sass -D
+```
+
+```js
+  module: {
+    rules: [
+      {
+        test: /\.scss$/,
+        use: ['style-loader', 'css-loader', 'sass-loader']
+      }
+    ]
+  }
+```
+
+#### `extract-text-webpack-plugin`
+
+
+
+## 常用`plugins`
+
 ## 优化
 
 ### 1. 缩小文件搜索范围
@@ -671,4 +836,7 @@ module.exports = {
 前面介绍过在使用 `loader` 时可以通过 `test` 、 `include` 、 `exclude` 三个配置项来命中 `loader` 要应用规则的文件。 为了尽可能少的让文件被 `loader` 处理，可以通过 `include` 去命中只有哪些文件需要被处理。
 
 > 可以适当的调整项目的目录结构，以方便在配置 `loader` 时通过 `include` 去缩小命中范围。
+
+### 2. 使用`DllPlugin`
+
 
