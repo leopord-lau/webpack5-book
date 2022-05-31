@@ -1,0 +1,1 @@
+console.log('use copy-webpack-plugin')

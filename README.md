@@ -1320,6 +1320,8 @@ module: {
 
 ### 拆分`css`
 
+
+![css引用](./images/css引用.png)
 之前使用`css`相关`loader`把`css`内容通过`style`标签的方式添加到了`html`文件中，但是如果样式文件很多，全部添加到`html`中，难免显得混乱。这时候我们想用把`css`拆分出来用外链的形式引入`css`文件怎么做呢？这时候我们就需要借助插件来帮助我们。
 
 #### `mini-css-extract-plugin`
@@ -1350,7 +1352,7 @@ module.exports = {
 };
 ```
 
-![css引用](./images/css引用.png)
+![css引用](./images/拆分css.png)
 `mini-css-extract-plugin`会将所有的`css`样式合并为一个`css`文件，也就是说不管你有多少个`css`文件，最终都只会打包生成一个`css`文件，通过`link`标签引入。
 
 #### `extract-text-webpack-plugin`
@@ -1359,6 +1361,70 @@ module.exports = {
 
 ```bash
 npm i extract-text-webpack-plugin -D
+```
+
+
+### `DefinePlugin`
+`webpack`内置插件，允许创建一个在编译时可以配置的全局常量。
+
+```js
+const webpack = require('webpack');
+
+module.exports = {
+  mode: 'development',
+  plugins: [
+    new webpack.DefinePlugin({
+      environment: JSON.stringify('development')
+    })
+  ],
+}
+```
+
+> 注意，因为这个插件直接执行文本替换，给定的值必须包含字符串本身内的**实际引号**。通常，有两种方式来达到这个效果，使用 `'"production"'`, 或者使用 `JSON.stringify('production')`。比如传入一个变量`environment`，如果值是`'development'`，那么解析后的是`development`这个字段直接替换`environment`，相当于直接访问`development`这个变量，会报错，传入的字符应该携带引号（`"'xxxx'"`）或者`JSON.stringify('xxx')`
+
+
+### `ProvidePlugin`
+
+`webpack`内置插件，自动加载模块，而不必在项目中到处 `import` 或 `require`。
+
+```js
+const webpack = require('webpack');
+
+module.exports = {
+  mode: 'development',
+  plugins: [
+    new webpack.ProvidePlugin({
+      $: 'jquery'
+    })
+  ],
+}
+```
+
+在项目中就可以直接使用`$`。
+```js
+$('#id')
+```
+
+
+### `copy-webpack-plugin`
+
+我们在模板 `public/index.html` 中引入了静态资源，但是打包的时候 `webpack` 并不会帮我们拷贝到 `dist` 目录，因此 `copy-webpack-plugin` 就可以很好地帮我做拷贝的工作了。
+
+```js
+const path = require("path");
+const CopyWebpackPlugin = require('copy-webpack-plugin');
+module.exports = {
+  plugins: [
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: path.resolve(__dirname, "./public/js"),
+          to: path.resolve(__dirname, 'dist', 'js'),
+        },
+      ],
+    }),
+  ],
+};
 ```
 
 

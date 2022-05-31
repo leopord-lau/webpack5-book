@@ -1,0 +1,1 @@
+console.log('public下的资源文件')
