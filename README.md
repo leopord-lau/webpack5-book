@@ -813,11 +813,554 @@ npm i sass-loader node-sass -D
   }
 ```
 
+
+### 打包图片等文件
+
+#### `raw-loader`
+
+用于加载文件原始内容。通常用来解析`txt`文件。
+
+```js
+  module: {
+    rules: [
+      {
+        test: /\.txt$/,
+        use: 'raw-loader'
+      }
+    ]
+  }
+```
+
+#### `file-loader`
+
+用于打包图片、字体、媒体等文件。就是在 `JavaScript` 代码里 `import/require` 一个文件时，会将该文件生成到输出目录，并且在 `JavaScript` 代码里返回该文件的地址。
+
+安装
+```bash
+npm i --save-dev file-loader
+```
+
+```js
+module.exports = {
+  // ..
+  module: {
+    rules: [
+      {
+        test: /\.(jpe?g|png|git)$/i,
+        use: [
+          {
+            loader: "file-loader",
+            options: {
+              name: "[name].[hash:8].[ext]",
+              outputPath: "pics"
+            },
+          },
+        ],
+      },
+    ],
+  }
+};
+```
+上面的配置会将图片资源打包至`pics`目录下.
+
+`file-loader`常用options配置
+- `name`: 类型: `String|Function` 默认: '`[contenthash].[ext]`'， 打包后的文件名。
+- `outputPath`: 类型: `String|Function`, 保存打包后的文件目录。
+- `publicPath`: 类型: `String|Function`, 默认: `__webpack_public_path__`+ `outputPath`, 公开访问路径。
+
+常用占位符：
+- `[ext]`: 源文件后缀
+- `[name]`: 源文件名称
+- `[hash]`: 文件内容`hash`
+
+
+#### `url-loader`
+
+`url-loader` 功能与 `file-loader` 类似，如果文件小于限制的大小。则会返回 `base64` 编码，否则使用 `file-loader` 将文件移动到输出的目录中。
+
+
+```js
+module.exports = {
+  // ..
+  module: {
+    rules: [
+      {
+        test: /\.(jpe?g|png|git)$/i,
+        use: [
+          {
+            loader: "url-loader",
+            options: {
+              limit: 10240,
+              fallback: {
+                loader: "file-loader",
+                options: {
+                  name: "img/[name].[hash:8].[ext]",
+                },
+              },
+            },
+          },
+        ],
+      },
+    ],
+  }
+};
+```
+
+`options`配置
+- `limit`: 文件限制大小，如果小于限制，则会返回 `base64` 编码。
+- `fallback`: 当文件大小超出限制时使用另外一个`loader`
+
+上方的配置大小超过`10k`的图片使用`file-loader`，小于`10k`就用`base64`编码。
+来看看小于`10k`最终会被打包成
+```js
+ "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJEAAAAtCAYAAACu0IktAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAA...UNnkZN4kSk5ckUaJhkkSJhkkSJRomSZRomCRRokGmhn8BW7jHTzc1goUAAAAASUVORK5CYII="
+```
+
+图片的`url`地址被默认转化为了base64格式，如果一张图片太大的话，这样的转换反而降低效率,所以还不如用`http`请求.
+
+媒体跟字体的打包也跟图片一样。
+
+
+`file-loader` 和 `url-loader` 在 `webpack5` 就弃用了，取而代之是[资源模块(`asset module`)](https://webpack.docschina.org/guides/asset-modules/)。
+
+
+### 资源模块
+资源模块(`asset module`)是一种模块类型，它允许使用资源文件（字体，图标等）而无需配置额外 `loader`。
+
+通过添加 4 种新的模块类型，来替换所有这些 `loader`:
+- `asset/resource` 发送一个单独的文件并导出`URL`。之前通过使用 `file-loader` 实现。
+- `asset/inline` 导出一个资源的 `data URI`。之前通过使用 `url-loader` 实现。
+- `asset/source` 导出资源的源代码。之前通过使用 `raw-loader` 实现。
+- `asset` 在导出一个 `data URI` 和发送一个单独的文件之间自动选择。之前通过使用 `url-loader`，并且配置资源体积限制实现。
+
+
+#### `Resource`资源
+```js
+module.exports = {
+  // ..
+  module: {
+    rules: [
+      {
+        test: /\.png/,
+        type: "asset/resource",
+      },
+    ],
+  },
+};
+```
+所有 `.png` 文件都将被发送到输出目录，并且其路径将被注入到 `bundle` 中
+
+**自定义输出文件名**
+默认情况下，`asset/resource` 模块以 `[hash][ext][query]` 文件名发送到输出目录。不过有以下几个方法对输出的文件名进行修改。
+
+1. `output.assetModuleFilename`
+```js
+module.exports = {
+  output: {
+    filename: "main.js",
+    path: path.resolve(__dirname, "dist"),
+    clean: true,
+
+    // 修改模板字符串
+    assetModuleFilename: "images/[hash][ext][query]",
+  },
+  module: {
+    rules: [
+      {
+        test: /\.png/,
+        type: "asset/resource",
+      },
+    ],
+  },
+};
+```
+
+2. 将某些资源发送到指定目录
+
+```js
+module.exports = {
+  output: {
+    filename: "main.js",
+    path: path.resolve(__dirname, "dist"),
+    clean: true,
+    assetModuleFilename: "images/[hash][ext][query]",
+  },
+  module: {
+    rules: [
+      {
+        test: /\.png/,
+        type: "asset/resource",
+      },
+      {
+        test: /\.html/,
+        type: "asset/resource",
+
+        // 将文件发送到输出目录中
+        generator: {
+          filename: "static/[hash][ext][query]",
+        },
+      },
+    ],
+  }
+};
+```
+
+`Rule.generator.filename` 与 `output.assetModuleFilename` 相同，并且仅适用于 `asset` 和 `asset/resource` 模块类型。
+
+#### `inline`资源
+```js
+module.exports = {
+  // ..
+  module: {
+    rules: [
+      {
+        test: /\.png/,
+        type: "asset/inline",
+      },
+      {
+        test: /\.svg/,
+        type: "asset/inline",
+      },
+    ],
+  },
+};
+```
+所有 `.svg`和`.png` 文件都将作为 `data URI` 注入到 `bundle` 中。
+
+
+#### `source`资源
+
+```js
+module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.txt/,
+        type: "asset/source",
+      },
+    ],
+  }
+};
+```
+
+### 通用资源类型
+
+将`type`值设置成`asset`,`webpack` 将按照默认条件，自动地在 `resource` 和 `inline` 之间进行选择：小于 `8kb` 的文件，将会视为 `inline` 模块类型，否则会被视为 `resource` 模块类型。
+
+```js
+module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.png/,
+        type: "asset",
+      },
+      {
+        test: /\.svg/,
+        type: "asset",
+      },
+    ],
+  }
+};
+```
+
+也可以在`Rule.parser.dataUrlCondition.maxSize` 配置中修改限制条件。
+```js
+module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.png/,
+        type: "asset",
+        parser: {
+          dataUrlCondition: {
+            maxSize: 1 * 1024,
+          },
+        },
+      },
+      {
+        test: /\.svg/,
+        type: "asset",
+        parser: {
+          dataUrlCondition: {
+            maxSize: 0.5 * 1024,
+          },
+        },
+      },
+    ],
+  },
+};
+```
+
+## 常用`plugin`
+
+### `html-webpack-plugin`
+
+在前面，我们介绍了`webpack`的一些配置，虽然`js`文件打包好了，但是我们不可能每次在`html`文件中手动引入打包好的`js`（使用占位符生成文件名导致生成的`js`名称变动）。
+
+`html-webpack-plugin`这个插件可以将打包生成的`js`文件引入`html`中。可以
+
+安装`html-webpack-plugin`
+
+```bash
+npm i html-webpack-plugin -D
+```
+#### 单入口文件
+```js
+const path = require("path");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
+module.exports = {
+  mode: "development",
+  entry: path.resolve(__dirname, "./src/main.js"),
+  output: {
+    filename: "[name].[hash:8].js",
+    path: path.resolve(__dirname, "./dist"),
+  },
+  plugins: [
+    // 自动生成html
+    new HtmlWebpackPlugin({
+      title: "自动生成"
+    }),
+
+    // 使用模板html
+    // new HtmlWebpackPlugin({
+    //   template: path.resolve(__dirname, "./public/index.html"),
+    // }),
+  ],
+};
+```
+配置后，生成的`html`会自动引入打包后的文件。如果没有模板`html`，在使用了`html-webpack-plugin`后会自动生成一个引入了打包文件的`html`文件。
+
+
+#### 多入口文件
+```js
+const path = require("path");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
+module.exports = {
+  mode: "development",
+  entry: {
+    main: path.resolve(__dirname, "./src/main.js"),
+    index: path.resolve(__dirname, "./src/index.js"),
+  },
+  output: {
+    filename: "[name].[hash].js",
+    path: path.resolve(__dirname, "./dist"),
+    clean: true,
+  },
+  plugins: [
+    new HtmlWebpackPlugin({
+      title: "main",
+      filename: "main.html",
+      chunks: ["main"],
+    }),
+    new HtmlWebpackPlugin({
+      title: "index",
+      filename: "index.html",
+      chunks: ["index"], // 与入口文件对应的模块名
+    }),
+  ],
+};
+```
+
+### `webpack-dev-server`
+`webpack-dev-server` 提供了一个基本的 `web server`，并且具有 `live reloading`(实时重新加载) 功能。
+
+安装依赖：
+```bash
+npm i webpack-dev-server -D
+```
+
+使用 `npx webpack serve --open`命令启动或者在`webpack.config.js`文件进入`devServer`参数的配置，然后通过`npx webpack serve`启动。
+```js
+module.exports = {
+  entry: "./src/index.js",
+  output: {
+    path: path.resolve(__dirname, "dist"),
+    filename: "bundle.js",
+    clean: true,
+  },
+  devServer: {
+    static: {
+      directory: path.join(__dirname, "public"),
+    },
+    compress: true,
+    port: 9000,
+  },
+  plugins: [new HtmlWebpackPlugin({ title: "use webpack-dev-server" })],
+};
+```
+
+### `dll`相关
+
+在使用`webpack`进行打包时候，对于依赖的第三方库，如`react`，`react-dom`等这些不会修改的依赖，可以让它和业务代码分开打包；
+
+只要不升级依赖库版本，之后`webpack`就只需要打包项目业务代码，遇到需要导入的模块在某个动态链接库中时，就直接去其中获取；而不用再去编译第三方库，这样第三方库就只需要打包一次。
+
+接入需要完成的事：
+
+1. 将依赖的第三方模块抽离，打包到一个个单独的动态链接库中
+2. 当需要导入的模块存在动态链接库中时，让其直接从链接库中获取
+3. 项目依赖的所有动态链接库都需要被加载
+
+接入工具(`webpack`已内置)
+
+1. `DllPlugin`插件：用于打包出一个个单独的动态链接库文件；
+2. `DllReferencePlugin`:用于在主要的配置文件中引入`DllPlugin`插件打包好的动态链接库文件
+
+
+配置`webpack_dll.config.js`构建动态链接库
+```js
+const DllPlugin = require('webpack/lib/DllPlugin');
+const path = require('path');
+module.exports = {
+  mode: 'development',
+  entry: {
+    axios: ['axios']
+  },
+  output: {
+    filename: '[name].dll.js',
+    path: path.resolve(__dirname, './src/assets/dll'),
+    library: '_dll_[name]',
+    clean: true,
+  },
+  plugins: [
+    new DllPlugin({
+      name: '_dll_[name]',
+      // manifest.json 描述动态链接库包含了哪些内容
+      path: path.join(__dirname, './', '[name].dll.manifest.json'),
+    }),
+  ],
+};
+```
+
+在`webpack.config.js`中使用
+
+```js
+module.exports = {
+  mode: 'development',
+  entry: {
+    app: {
+      import: './src/index.js',
+      dependOn: ['axios'],
+    },
+    axios: 'axios',
+  },
+  output: {
+    filename: '[name].[hash].js',
+    clean: true,
+  },
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: path.resolve(__dirname, './public/index.html'),
+    }),
+    ...[
+      new DllReferencePlugin({
+        manifest: require('./axios.dll.manifest.json'),
+      }),
+    ],
+  ],
+};
+```
+
+### `happypack`
+
+核心原理：将`webpack`中最耗时的`loader`文件转换操作任务，分解到多个进程中并行处理，从而减少构建时间。
+
+接入HappyPack
+
+- 安装：`npm i  happypack -D`
+- 重新配置`rules`部分,将`loader`交给`happypack`来分配：
+
+```js
+const HappyPack = require('happypack');
+const happyThreadPool = HappyPack.ThreadPool({size: 5}); //构建共享进程池，包含5个进程
+...
+plugins: [
+    // happypack并行处理
+    new HappyPack({
+        // 用唯一ID来代表当前HappyPack是用来处理一类特定文件的，与rules中的use对应
+        id: 'babel',
+        loaders: ['babel-loader?cacheDirectory'],//默认设置loader处理
+        threadPool: happyThreadPool,//使用共享池处理
+    }),
+    new HappyPack({
+        // 用唯一ID来代表当前HappyPack是用来处理一类特定文件的，与rules中的use对应
+        id: 'css',
+        loaders: [
+            'css-loader',
+            'postcss-loader',
+            'sass-loader'],
+            threadPool: happyThreadPool
+    })
+],
+module: {
+    rules: [
+    {
+        test: /\.(js|jsx)$/,
+        use: ['happypack/loader?id=babel'],
+        exclude: path.resolve(__dirname,' ./node_modules'),
+    },
+    {
+        test: /\.(scss|css)$/,
+        //使用的mini-css-extract-plugin提取css此处，如果放在上面会出错
+        use: [MiniCssExtractPlugin.loader,'happypack/loader?id=css'],
+        include:[
+            path.resolve(__dirname,'src'),
+            path.join(__dirname, './node_modules/antd')
+        ]
+    },
+}
+```
+
+参数：
+
+`threads`：代表开启几个子进程去处理这一类文件，默认是3个；
+`verbose`:是否运行`HappyPack`输出日志，默认true；
+`threadPool`：代表共享进程池，即多个`HappyPack`示例使用一个共享进程池中的子进程去处理任务，以防资源占有过多
+
+### 拆分`css`
+
+之前使用`css`相关`loader`把`css`内容通过`style`标签的方式添加到了`html`文件中，但是如果样式文件很多，全部添加到`html`中，难免显得混乱。这时候我们想用把`css`拆分出来用外链的形式引入`css`文件怎么做呢？这时候我们就需要借助插件来帮助我们。
+
+#### `mini-css-extract-plugin`
+
+这个插件可以将
+
+```bash
+npm i -D mini-css-extract-plugin
+```
+
+```js
+module.exports = {
+  // ..
+  module: {
+    rules: [
+      {
+        test: /\.css$/,
+        use: [MiniCssExtractPlugin.loader, "css-loader"],
+      },
+    ],
+  },
+  plugins: [
+    new MiniCssExtractPlugin({
+      filename: "[name].[hash].css",
+      chunkFilename: "[id].css",
+    })
+  ],
+};
+```
+
+![css引用](./images/css引用.png)
+`mini-css-extract-plugin`会将所有的`css`样式合并为一个`css`文件，也就是说不管你有多少个`css`文件，最终都只会打包生成一个`css`文件，通过`link`标签引入。
+
 #### `extract-text-webpack-plugin`
 
+如果想拆分成多个`css`文件，则需要使用另外一个插件,`@next`版本的`extract-text-webpack-plugin`. 只支持`webpack^3.x`和`webpack^4.x`。
 
+```bash
+npm i extract-text-webpack-plugin -D
+```
 
-## 常用`plugins`
 
 ## 优化
 
